@@ -1,9 +1,11 @@
         | Mod 0014 - CTRL ALL: TRK + knob turns that parameter on every sound track.
         |
         | The same step goes to tracks 1..12, so their differences are kept. A SYNTH
-        | knob applies by position: each track takes the id its own machine has in
-        | the same slot, within that id's range, and a track whose machine has none
-        | there is left alone; stock's write drops an id of another machine. Each
+        | knob turns the same knob on every track: each track takes the id its own
+        | machine's SYNTH page has under that knob, within that id's range, and a track whose machine
+        | has none there is left alone; stock's write drops an id of another machine.
+        | The page's knob order follows neither the sound's storage slots nor the
+        | CC numbers, so the page's own table is the one used. Each
         | track's set comes from the page's own getter and each write
         | goes through that set's delta handler, which reads and writes the set's
         | own track; storage and the display see ordinary edits.
@@ -19,6 +21,7 @@
         .equ    FX_TRACK,       12
         .equ    TRACKS,         12                | the sound tracks, 0..11
         .equ    TRIG_KEYS,      16                | key ids 0..15
+        .equ    KNOBS,          8                 | SYNTH page knobs
         .equ    VT_PAGE_SET,    0xa0              | page view: page_param_set(view, track)
         .equ    VT_READ,        0x28              | set: param_set_read(set, id)
         .equ    VT_APPLY_DELTA, 0x2c              | set: param_set_apply_delta
@@ -94,27 +97,38 @@ ctrl_all_done:
 
         | ctrl_all_each: the turn on every sound track, from ctrl_all_gate with
         | the selected track parked on the stack; FILTER TYP goes to
-        | ctrl_all_typ instead.
+        | ctrl_all_typ instead. A machine parameter is looked up in its machine's
+        | SYNTH page table for the knob, which then names each track's id; any
+        | other id, or one not on that page, goes to every track as it is.
         .align  2
 ctrl_all_each:
         moveq   #ID_FLT_TYP,%d1
         cmp.l   %sp@(28),%d1
         beq.w   ctrl_all_typ
-        addq.l  #4,%sp                            | the parked track
-        moveq   #0,%d2
-3:      move.l  %d2,-(%sp)                        | this track's set
-        move.l  %a2,-(%sp)
-        move.l  %a2@,%a0
-        move.l  %a0@(VT_PAGE_SET),%a0
-        jsr     %a0@
-        addq.l  #8,%sp
-        move.l  %d0,-(%sp)                        | the set, at %sp@(4)
-        move.l  %sp@(28),-(%sp)                   | this track's id, at (%sp)
-        jsr     param_is_machine
+        move.l  %sp@(28),-(%sp)
+        jsr     param_machine
+        addq.l  #4,%sp
+        moveq   #-1,%d1                           | no knob: the same id on every track
         tst.l   %d0
-        beq.s   4f
-        jsr     param_container_index             | the machine slot
-        move.l  %d0,(%sp)
+        bmi.s   2f
+        move.l  %d0,-(%sp)
+        jsr     synth_page_knob_table
+        addq.l  #4,%sp
+        move.l  %d0,%a0
+        move.l  %sp@(28),%d2
+        moveq   #KNOBS-1,%d1
+1:      cmp.l   %a0@(4,%d1:l:4),%d2
+        beq.s   2f                                | the knob that turned
+        subq.l  #1,%d1
+        bpl.s   1b                                | none: -1
+2:      move.l  %d1,(%sp)                         | the knob, over the parked track
+        moveq   #TRACKS-1,%d2
+3:      move.l  %d2,%d0
+        bsr.s   track_set
+        move.l  %d0,-(%sp)                        | the set, at %sp@(4)
+        move.l  %sp@(32),-(%sp)                   | this track's id, at (%sp)
+        tst.l   %sp@(8)
+        bmi.s   4f
         move.l  %sp@(4),%a0
         move.l  %a0@(SET_SOUND),%d0
         beq.s   5f                                | no sound: stock writes nothing
@@ -130,15 +144,16 @@ ctrl_all_each:
         moveq   #0,%d0
         move.b  %a0@(SOUND_MACHINE),%d0
         move.l  %d0,-(%sp)                        | this track's machine
-        move.l  %sp@(4),-(%sp)                    | the slot
-        jsr     sound_param_id_for_index
-        addq.l  #8,%sp
-        move.l  %d0,(%sp)
+        jsr     synth_page_knob_table
+        addq.l  #4,%sp
+        move.l  %d0,%a0
+        move.l  %sp@(8),%d1
+        move.l  %a0@(4,%d1:l:4),(%sp)
         beq.s   5f                                | its machine has no parameter there
-4:      move.l  %sp@(44),-(%sp)                   | outFlag
+4:      move.l  %sp@(48),-(%sp)                   | outFlag
         move.l  %d3,-(%sp)                        | funcHeld
         move.l  %d2,-(%sp)                        | track
-        move.l  %sp@(48),-(%sp)                   | delta
+        move.l  %sp@(52),-(%sp)                   | delta
         move.l  %sp@(16),-(%sp)                   | id
         move.l  %sp@(24),-(%sp)                   | set
         move.l  (%sp),%a0
@@ -147,21 +162,26 @@ ctrl_all_each:
         jsr     %a0@
         lea     24(%sp),%sp
 5:      addq.l  #8,%sp                            | the set and id
-        addq.l  #1,%d2
-        moveq   #TRACKS,%d0
-        cmp.l   %d0,%d2
-        blt.w   3b
+        subq.l  #1,%d2
+        bpl.w   3b
+        addq.l  #4,%sp                            | the knob
         jmp     ctrl_all_done
 
-        .align  2
-ctrl_all_typ:
-        move.l  (%sp)+,%d2                        | the selected track
-        move.l  %d2,-(%sp)                        | its set
+        | track_set: d0 a track -> d0 its set, from the page's own getter.
+track_set:
+        move.l  %d0,-(%sp)
         move.l  %a2,-(%sp)
         move.l  %a2@,%a0
         move.l  %a0@(VT_PAGE_SET),%a0
         jsr     %a0@
         addq.l  #8,%sp
+        rts
+
+        .align  2
+ctrl_all_typ:
+        move.l  (%sp)+,%d2                        | the selected track
+        move.l  %d2,%d0                           | its set
+        bsr.s   track_set
         move.l  %sp@(36),-(%sp)                   | outFlag
         move.l  %d3,-(%sp)                        | funcHeld
         move.l  %d2,-(%sp)                        | track
@@ -173,12 +193,8 @@ ctrl_all_typ:
         move.l  %a0@(VT_APPLY_DELTA),%a0
         jsr     %a0@
         lea     24(%sp),%sp
-        move.l  %d2,-(%sp)                        | its set again, for the value
-        move.l  %a2,-(%sp)
-        move.l  %a2@,%a0
-        move.l  %a0@(VT_PAGE_SET),%a0
-        jsr     %a0@
-        addq.l  #8,%sp
+        move.l  %d2,%d0                           | its set again, for the value
+        bsr.s   track_set
         move.l  %sp@(24),-(%sp)                   | id
         move.l  %d0,-(%sp)                        | set
         move.l  %d0,%a0
@@ -190,12 +206,8 @@ ctrl_all_typ:
         moveq   #0,%d3                            | funcHeld no longer needed
 1:      cmp.l   %d2,%d3
         beq.s   2f                                | the selected track has it
-        move.l  %d3,-(%sp)                        | this track's set
-        move.l  %a2,-(%sp)
-        move.l  %a2@,%a0
-        move.l  %a0@(VT_PAGE_SET),%a0
-        jsr     %a0@
-        addq.l  #8,%sp
+        move.l  %d3,%d0                           | this track's set
+        bsr.s   track_set
         pea     1
         pea     1
         move.l  %d3,-(%sp)                        | track

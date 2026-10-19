@@ -24,6 +24,7 @@ public class ApplySymbols extends GhidraScript {
         name(0x40007028L, "sound_param_id_for_index", true);
         name(0x400070e6L, "machine_available", true);
         name(0x40007116L, "machine_home_track", true);
+        name(0x4000714aL, "param_machine", true);
         name(0x4000716eL, "track_physical_voice_get", true);
         name(0x400081f6L, "sound_load", true);
         name(0x4000843aL, "sound_save", true);
@@ -157,6 +158,7 @@ public class ApplySymbols extends GhidraScript {
         name(0x400ff560L, "param_info_resume", false);
         name(0x400ff574L, "page_info", true);
         name(0x400ff57aL, "page_info_resume", false);
+        name(0x400ff59aL, "synth_page_knob_table", true);
         name(0x400ff9fcL, "lfo_dst_knob_draw", true);
         name(0x40100000L, "audio_dsp_region", false);
         name(0x40100682L, "static_ctors_run", true);
@@ -275,6 +277,6 @@ public class ApplySymbols extends GhidraScript {
         name(0x8000fbbcL, "fx_return_route_flag_delay", false);
         name(0x8000fef4L, "fx_mix_ring_slot", false);
         name(0x8000fef8L, "voice_machine_state", false);
-        println("applied 258 symbols");
+        println("applied 260 symbols");
     }
 }

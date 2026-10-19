@@ -574,7 +574,7 @@ note = "Read from the FPGA bitstream's write to configuration register 0x0E (IDC
 [data.param_record_base]
 addr = 0x401bf918
 status = "verified"
-note = "The parameter record base the CODE actually uses: 19 sites `lea 0x401bf918,%aN` (0x40006d34, 0x40006f24, 0x400a8fa0, ...), stride 0x34. NOTE: [data.param_table_rom] above gives 0x401bf940, which is +0x28 into each record (the long-name field), so its field offsets are all shifted by one word. This entry is the corrected frame. Record 467 cross-checks: 0x401bf918 + 0x34*467 + 0x28 = 0x401c581c holds \"Bool Operator\"/\"Euclidean\"/\"OP\". Fields: +0x04 machine-parameter index, +0x08/+0x0c/+0x10 minimum, maximum and default in 8.8 (the 12 bytes 0x40006ff0 copies out; FRQ id 47: 0, 0x7f00, 0x7f00; TYP id 49: 0, 0x600, 0 = LP2), +0x18 sequential id, +0x1c dense ordinal, +0x24 modflags, +0x28/+0x2c/+0x30 long/group/short name pointers."
+note = "The parameter record base the CODE actually uses: 19 sites `lea 0x401bf918,%aN` (0x40006d34, 0x40006f24, 0x400a8fa0, ...), stride 0x34. NOTE: [data.param_table_rom] above gives 0x401bf940, which is +0x28 into each record (the long-name field), so its field offsets are all shifted by one word. This entry is the corrected frame. Record 467 cross-checks: 0x401bf918 + 0x34*467 + 0x28 = 0x401c581c holds \"Bool Operator\"/\"Euclidean\"/\"OP\". Fields: +0x04 machine-parameter index, +0x08/+0x0c/+0x10 minimum, maximum and default in 8.8 (the 12 bytes 0x40006ff0 copies out; FRQ id 47: 0, 0x7f00, 0x7f00; TYP id 49: 0, 0x600, 0 = LP2), +0x18 the MIDI CC in its high half-word (machine records: 16..23 as in the manual's Synth 1..8, 0xffff for none; other kinds not checked), +0x1c dense ordinal, +0x24 modflags, +0x28/+0x2c/+0x30 long/group/short name pointers."
 
 [data.param_modflags]
 addr = 0x401bf918
@@ -726,6 +726,18 @@ addr = 0x40006f18
 sig = "bool(int paramId)"
 status = "verified"
 note = "Whether the ROM parameter record's kind (+0x00) is 0..52, a machine's own parameter. SoundParameterSet's write (0x400a9d7e) then compares the record's machine (0x4000714a) with the live sound's +0x68 and returns without writing when they differ."
+
+[fn.param_machine]
+addr = 0x4000714a
+sig = "int(int paramId)"
+status = "verified"
+note = "The ROM parameter record's kind (+0x00) when it is 0..52 - the machine the parameter belongs to - else -1. Ids above 468 return -1."
+
+[fn.synth_page_knob_table]
+addr = 0x400ff59a
+sig = "SynthKnobs *(int machine)"
+status = "verified"
+note = "0x40287cc8 + machine * 36 for machines 0..52, else 0x401ec570. Each entry is a long, then the parameter ids under the SYNTH page's 8 knobs at +4 + knob * 4 (0 for an empty knob). SynthPageView's knob -> id (vtable +0x9c, 0x400d3544) reads it for the live sound's machine. TUN is knob 0, DEC 3 and LEV 7 on every machine; the rest follow neither the storage slot (+0x04) nor the CC (+0x18): BD HARD reads TUN SWT SNP DEC WAV HLD TIC LEV."
 
 [fn.sound_randomize]
 addr = 0x400bc5f2

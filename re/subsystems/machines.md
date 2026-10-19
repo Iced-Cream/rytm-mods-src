@@ -76,9 +76,21 @@ A ROM parameter record (`0x401bf918`, stride `0x34`) whose kind (`+0x00`) is
 0..52 belongs to that machine; `+0x04` is its sound index (9..16). At boot
 `param_tables_build` puts the record ids into `0x413db5fc[m * 8 + index - 9]`.
 Other fields, from comparing pairs **[inferred]**: `+0x08` min, `+0x0c` max,
-`+0x10` default (all `<< 8`), `+0x14` display (1 = bipolar), `+0x18` the MIDI
-CC. `+0x20` is set on every public record and 0 on every hidden one
+`+0x10` default (all `<< 8`), `+0x14` display (1 = bipolar). `+0x18`'s high
+half-word is the MIDI CC: 16..23 on the public machines' records, as in the
+manual's Synth 1..8, and 0xffff on the hidden ones and four of UT IMPULSE's
+**[measured]**. `+0x20` is set on every public record and 0 on every hidden one
 **[measured]**; that it is the Overbridge / NRPN id is **[inferred]**.
+
+Three orders of a machine's eight parameters disagree **[measured]**: the
+sound index (`+0x04`, the SRC column below), the CC, and the SYNTH page's
+knobs. The page reads its own table, `synth_page_knob_table(m)` =
+`0x40287cc8 + m * 36`, ids at `+4 + knob * 4`, 0 for an empty knob. TUN is
+knob 0, DEC 3 and LEV 7 on every machine; the rest differ from both other
+orders on almost every machine (BD HARD: TUN SWT SNP DEC WAV HLD TIC LEV).
+CC and sound index differ on BT CLASSIC, UT NOISE, BD PLASTIC, BD SILKY, SD
+NATURAL, CY RIDE, BD SHARP, SY DUAL VCO, SY CHIP, BD ACOUSTIC, SD ACOUSTIC and
+SY RAW.
 
 ## The machines
 
