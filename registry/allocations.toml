@@ -2207,8 +2207,10 @@ rejoin = 0x400a2ab6
 # Keeping DAC SUM with the project's globals, beside the routing it overrides.
 # projectGlobals_t's load (0x4000763c; storage version 2): after its version
 # check, `mvsb %a2@(4),%d1; moveq #1,%d2`, exactly six bytes, both re-emitted;
-# a2 the stored record. Stored bytes 12..24 are read and written by neither the
-# load nor the save (0x40007a5c), and the save does not clear the record.
+# a2 the stored record. Stored bytes 12..24 are stock's 13 track MIDI channels,
+# loaded by a loop at 0x40007706 and saved at 0x40007ab4 (0x40007a5c's save).
+# Only +75..+79 are touched by neither, and the save does not clear the record;
+# DAC SUM is +79.
 [[detour]]
 owner  = "0013-voice-dac"
 addr   = 0x40007660

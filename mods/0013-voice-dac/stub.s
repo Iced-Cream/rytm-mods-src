@@ -9,9 +9,10 @@
         |
         | Switched at run time by DAC SUM, the last item of the AUDIO ROUTING
         | menu. OFF is stock's routing and no sum. It is saved with the
-        | project's globals, beside the routing it overrides: stored bytes
-        | +12 (tag) and +13 of projectGlobalsStorage_v2_t, which stock's load
-        | and save never touch; a project without the tag loads as OFF.
+        | project's globals, beside the routing it overrides: stored byte +79
+        | of projectGlobalsStorage_v2_t, a tag in bits 1-7 and the value in
+        | bit 0; a project without the tag loads as OFF. +75..+79 are the only
+        | bytes stock's load and save leave alone.
         |
         | Each voice is filtered before the sum, set by its track's DAC FILTER
         | page (page 13, reached by pressing FILTER again while DAC SUM is on):
@@ -254,13 +255,13 @@
         .equ    LOAD_RESUME,    0x40008270
         .equ    IDLE_RESUME,    0x400a2ab6
         | DAC SUM in the project's globals (projectGlobalsStorage_v2_t, loaded
-        | by 0x4000763c and saved by 0x40007a5c; stored bytes 12..24 are
-        | touched by neither). ProjectGlobals is the project's member at +236;
+        | by 0x4000763c and saved by 0x40007a5c). Neither touches +75..+79;
+        | +12..+24 are the 13 track MIDI channels, saved and loaded in loops
+        | (0x40007ab4, 0x40007706). ProjectGlobals is the project's member at +236;
         | its vtable +80, called with (object, 0), is the change notice stock's
         | routing setters end with.
-        .equ    OFF_DAC_TAG,    12
-        .equ    OFF_DAC_ON,     13
-        .equ    DAC_TAG,        0xd5
+        .equ    OFF_DAC,        79                | DAC_TAG + DAC SUM
+        .equ    DAC_TAG,        0xd4              | bit 0 clear
         .equ    PROJ_GLOBALS,   236
         .equ    VT_CHANGED,     80
         .equ    DLOAD_RESUME,   0x40007666
@@ -1225,12 +1226,13 @@ hpf_refresh:
         | projectGlobals_t's load (0x4000763c), after its version check, over
         | `mvsb %a2@(4),%d1; moveq #1,%d2`, both re-emitted: a2 the stored
         | record, a3 the live one. The boot loop loads four (0x4000ce1c), so
-        | the value goes to that live record's entry in dac_rec - stored +13
-        | under the tag at +12, or OFF - and hpf_refresh picks the active
-        | record's. A single flag, set by every load, took the last record's
-        | and lost the active one's (hardware, 2026-09-28); an untouched record
-        | can hold leftovers there (the fourth read 00 01), which the tag keeps
-        | out. d0 is written again before it is read.
+        | the value goes to that live record's entry in dac_rec - bit 0 of
+        | stored +79 under the tag in bits 1-7, or OFF - and hpf_refresh picks
+        | the active record's. A single flag, set by every load, took the last
+        | record's and lost the active one's (hardware, 2026-09-28). Stock
+        | never writes +79, so a record not yet saved by 0013 holds whatever
+        | the image held there, which the tag keeps out. d0 is written again
+        | before it is read.
         | ------------------------------------------------------------------
         .align  2
 dac_load:
@@ -1238,19 +1240,19 @@ dac_load:
         movem.l %a0-%a1,(%sp)
         move.l  %a3,%a0
         bsr.w   dac_slot                          | d0 = this live record's entry
-        moveq   #0,%d1
-        mvz.b   OFF_DAC_TAG(%a2),%d2              | d2 is set again after
+        mvz.b   OFF_DAC(%a2),%d1
+        move.l  %d1,%d2                           | d2 is set again after
+        and.l   #0xfe,%d2
         cmp.l   #DAC_TAG,%d2
-        bne.s   1f
-        tst.b   OFF_DAC_ON(%a2)
-        sne     %d1
-        and.l   #1,%d1                            | 1 or 0
-1:      lea     dac_rec,%a1
+        beq.s   1f
+        moveq   #0,%d1                            | untagged: OFF
+1:      and.l   #1,%d1                            | 1 or 0
+        lea     dac_rec,%a1
         move.b  %d1,(%a1,%d0.l)
         .if     P_DBG
         addq.l  #1,dbg_loads
         lea     dbg_tags,%a1
-        mvz.b   OFF_DAC_TAG(%a2),%d1
+        mvz.b   OFF_DAC(%a2),%d1
         move.b  %d1,(%a1,%d0.l)                   | the tag each record's load found
         .endif
         movem.l (%sp),%a0-%a1
@@ -1262,8 +1264,7 @@ dac_load:
         | ------------------------------------------------------------------
         | projectGlobals_t's save (0x40007a5c), over `moveq #2,%d0` and the
         | first four bytes of `moveb %a3@(211),%a2@(70)`, both re-emitted: a2
-        | the stored record. The tag at +12 and DAC SUM at +13. d1 is not read
-        | again.
+        | the stored record. DAC_TAG + DAC SUM at +79. d1 is not read again.
         | ------------------------------------------------------------------
         .align  2
 dac_save:
@@ -1272,8 +1273,6 @@ dac_save:
         .endif
         lea     -8(%sp),%sp
         movem.l %a0-%a1,(%sp)
-        move.l  #DAC_TAG,%d1
-        move.b  %d1,OFF_DAC_TAG(%a2)
         move.l  dac_on,%d1                        | a record never loaded: DAC SUM
         move.l  %a3,%a0
         bsr.w   dac_find
@@ -1281,7 +1280,8 @@ dac_save:
         bmi.s   1f
         lea     dac_rec,%a1
         mvz.b   (%a1,%d0.l),%d1                   | this record's
-1:      move.b  %d1,OFF_DAC_ON(%a2)
+1:      add.l   #DAC_TAG,%d1
+        move.b  %d1,OFF_DAC(%a2)
         movem.l (%sp),%a0-%a1
         lea     8(%sp),%sp
         moveq   #2,%d0                            | displaced

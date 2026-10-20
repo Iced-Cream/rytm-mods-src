@@ -346,6 +346,9 @@ as 0014 does for stock's parameters.
 
 **Known limits**
 
+- Earlier versions of this mod stored DAC SUM over the TRACK 1 and TRACK 2
+  MIDI channels. Projects saved with them load with DAC SUM off, TRACK 1
+  CHANNEL 1 and TRACK 2 CHANNEL 1 or 2. Set the three again once.
 - None of these settings can be p-locked, and they have no MIDI CC.
 - Saving a sound or kit with stock firmware drops them (the sound reads TYP
   OFF, ATK and SUS 0, POL +).

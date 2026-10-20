@@ -159,10 +159,12 @@ back are not yet checked for this version.
 
 DAC SUM, the last item of AUDIO ROUTING, switches it at run time. OFF is
 stock's routing and no sum. It is kept with the project's globals, beside the
-routing it overrides: stored bytes +12 (tag) and +13 of each of the four
-projectGlobalsStorage_v2_t records, which stock's load and save never touch.
-Each record keeps its own value; the UI's idle tick follows the active one. A
-record saved without the tag loads as OFF. The item is built
+routing it overrides: stored byte +79 of each of the four
+projectGlobalsStorage_v2_t records, 0xd4 + DAC SUM (a tag in bits 1-7, the
+value in bit 0). +75..+79 are the only bytes stock's load and save never touch;
++12..+24 are the 13 track MIDI channels, loaded and saved in loops (0x40007706,
+0x40007ab4). Each record keeps its own value; the UI's idle tick follows the
+active one. A record saved without the tag loads as OFF. The item is built
 after USB TO MAIN with USB OUT's sequence and managers; its value draws as ON
 or OFF and changes with the value controls, up for ON. Switching clicks once:
 the analog bus changes at once, the DAC path 2.58 ms later.
@@ -216,8 +218,12 @@ polarity was inverted, since fixed. K and the slot trims were then set from
 A/Bs on and off: slots 0-3 and 5 match the analog path within 0.1 dB; slot 6's
 trim was corrected from the same measurement and not measured again.
 
-Known limits: the voices reach MAIN 2.58 ms later than they would through the
-analog bus. They share the PRE pair with the delay and reverb returns and the
+Known limits: another developer's allocator also keeps data in +75..+79
+(0x4b..0x4f), so a project moved between that build and this one can be
+misread by either. Builds before this layout kept DAC SUM at +12 (tag 0xd5) and
++13, over the TRACK 1 and TRACK 2 MIDI channels; their projects load with DAC
+SUM OFF, TRACK 1 CHANNEL 1 and TRACK 2 CHANNEL 1 or 2 (the old DAC SUM), to be
+set again by hand. The voices reach MAIN 2.58 ms later than they would through the analog bus. They share the PRE pair with the delay and reverb returns and the
 PRE-FX audio input, and are clamped at its full scale (about 12 dB above the
 loudest pattern measured). Individual outputs are unaffected, and carry the
 voice before the filter. TYP, FRQ and DEP cannot be p-locked or reached over
