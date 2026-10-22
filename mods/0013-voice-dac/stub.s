@@ -857,14 +857,34 @@ t_clip: .long   0
         | ------------------------------------------------------------------
         | page_info's answer for ids above 11, `movel #0x401ec570,%d0` before its
         | rts: page 13 answers the DAC FILTER page. Reached with d0 the page id, from the
-        | range compare 0004 rejoins at when it is built.
+        | range compare 0004 rejoins at when it is built. With the selected
+        | sound's TYP LP1 or HP1 it answers page_hpf_1p, RES's slot empty: no
+        | dial or label, and the knob does nothing, as on stock's REVERB and
+        | DISTORTION pages. With TYP OFF it answers page_hpf_off, FRQ's slot
+        | empty too. Every reader calls page_info afresh (the knob -> id at
+        | 0x4003795a among them), so the slots follow TYP as the page
+        | redraws. Clobbers d0/d1/a0/a1.
         | ------------------------------------------------------------------
         .align  2
 hpf_page_info:
         moveq   #PAGE_HPF,%d1
         cmp.l   %d1,%d0
         bne.s   1f
+        jsr     flt_cur
+        moveq   #24,%d1
+        lsr.l   %d1,%d0                           | TYP
+        bne.s   3f
+        move.l  #page_hpf_off,%d0
+        rts
+3:      moveq   #TYP_LP1,%d1
+        cmp.l   %d1,%d0
+        beq.s   2f
+        moveq   #TYP_HP1,%d1
+        cmp.l   %d1,%d0
+        beq.s   2f
         move.l  #page_hpf,%d0
+        rts
+2:      move.l  #page_hpf_1p,%d0
         rts
 1:      move.l  #PAGE_DEFAULT,%d0                 | displaced
         rts                                       | as stock's, after it
@@ -872,10 +892,18 @@ hpf_page_info:
         | The DAC FILTER page: FRQ, RES, TYP and DEP along the top row, the
         | first three in stock's FILTER order, the graph drawn over FRQ and
         | RES; the transient shaper's ATK and SUS and POL along the bottom.
+        | page_hpf_1p is the same without RES, for the 1-pole types, and
+        | page_hpf_off without FRQ and RES, for TYP OFF.
         .align  2
 page_hpf:
         .long   txt_page
         .long   ID_FRQ, ID_RES, ID_TYP, ID_DEP, ID_ATK, ID_SUS, ID_POL, 0
+page_hpf_1p:
+        .long   txt_page
+        .long   ID_FRQ, 0, ID_TYP, ID_DEP, ID_ATK, ID_SUS, ID_POL, 0
+page_hpf_off:
+        .long   txt_page
+        .long   0, 0, ID_TYP, ID_DEP, ID_ATK, ID_SUS, ID_POL, 0
         | The FILTER view's page vector, FILTER and then DAC FILTER.
 filter_pages:
         .long   PAGE_FILTER, PAGE_HPF
@@ -2819,7 +2847,11 @@ flt_glyph:
         | 2-pole types, RES, then returns through sound_page_draw's epilogue. TYP OFF
         | draws as HP1 at FRQ 0: the corner at the box's left edge, the line
         | flat across it. The rise stock draws before the corner, x -4..5,
-        | outside the box, is cleared after. a2 is the view and d2 the canvas.
+        | outside the box, is cleared after. For LP1 and HP1 RES's slot is
+        | empty (hpf_page_info), for OFF FRQ's and RES's, and the knob loop has
+        | drawn stock's 11x16 empty-knob bitmap (0x419f18a0) in each, centred
+        | on (16, 43) and (48, 43); they are cleared before the graph. a2 is
+        | the view and d2 the canvas.
         | ------------------------------------------------------------------
         .align  2
 flt_graph:
@@ -2840,19 +2872,27 @@ flt_graph:
         beq.s   3f
         moveq   #0,%d4                            | RES: none for LP1 and HP1
         cmp.l   #TYP_LP1,%d1
-        beq.s   6f
+        beq.s   7f
         cmp.l   #TYP_HP1,%d1
-        beq.s   6f
+        beq.s   7f
         move.l  %d0,%d4
         and.l   #FLT_7_BITS,%d4
         lsl.l   #8,%d4
+        bra.s   6f
+7:      move.l  %d0,-(%sp)
+        moveq   #42,%d1                           | RES's empty slot
+        bsr.s   flt_clear
+        move.l  (%sp)+,%d0
+        move.l  %d3,%d1
 6:      lea     flt_stock_typ,%a0
         mvz.b   (%a0,%d1.l),%d1                   | stock's TYP index
         swap    %d0
         and.l   #0xff,%d0
         lsl.l   #8,%d0                            | FRQ
         bra.s   4f
-3:      moveq   #3,%d1                            | OFF: HP1
+3:      moveq   #10,%d1                           | FRQ's and RES's empty slots
+        bsr.s   flt_clear
+        moveq   #3,%d1                            | OFF: HP1
         moveq   #0,%d0                            | at FRQ 0
         moveq   #0,%d4
 4:      lsl.l   #8,%d1
@@ -2878,6 +2918,20 @@ flt_graph:
         lea     24(%sp),%sp
 5:      movem.l (%sp),%d2-%d5/%a2-%a4/%fp         | sound_page_draw's epilogue
         lea     36(%sp),%sp
+        rts
+
+        | flt_clear(d1 = x0, d2 = canvas): clears x0..54, y 34..51, over the
+        | top row's empty-knob bitmaps. Clobbers d0/d1/a0/a1.
+        .align  2
+flt_clear:
+        clr.l   -(%sp)
+        pea     51
+        pea     54
+        pea     34
+        move.l  %d1,-(%sp)
+        move.l  %d2,-(%sp)
+        jsr     CLEAR_RECT
+        lea     24(%sp),%sp
         rts
 
 
