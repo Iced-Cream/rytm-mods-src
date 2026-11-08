@@ -1,5 +1,3 @@
-Public copy of MrScruff's firmware modifications for the Analog Rytm MKII, redistributed with permission. Released as-is, responses to issues should not be expected.
-
 # rytm-mods
 
 Firmware modifications for the Elektron Analog Rytm MKII, OS 1.73.
@@ -44,7 +42,7 @@ differs from `stock/SHA256SUMS`.
 
 Produces `build/Analog-Rytm_MKII_OS1.73_<tag>.syx`, the only delivery format this
 device has - there is no CF-card `.bin` equivalent. The default build's tag is
-`0000_0002_0003_0004_0006_0008_0009_0010_0012_0013_0014_0015`. See `docs/FLASHING.md` to install it.
+`0000_0002_0003_0004_0006_0008_0009_0010_0012_0013_0014_0015_0017_0018`. See `docs/FLASHING.md` to install it.
 
 Build a subset for hardware bisection:
 
@@ -95,6 +93,8 @@ still record what those probes established.
 | 0013 | Voices to MAIN through the DAC, with a per-sound filter | hardware-verified |
 | 0014 | CTRL ALL: TRK + knob turns that parameter on every sound track | hardware-verified |
 | 0015 | ENV RESET reaches AMP and AMP+FILT | hardware-verified |
+| 0017 | CTRL IN drives a performance macro | built |
+| 0018 | Scenes that set the track mutes: SCENE + FUNC + trig | built |
 
 Status ladder: `re-only` -> `built` -> `hardware-verified`, plus `retracted`.
 Only `hardware-verified` counts.

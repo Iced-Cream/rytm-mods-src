@@ -57,6 +57,7 @@ public class ApplySymbols extends GhidraScript {
         name(0x4003a048L, "param_edit_resume", false);
         name(0x4003ab9cL, "page_cycle_after_invalidate", false);
         name(0x4003b8aaL, "sound_apply_step_locks", true);
+        name(0x4003bec4L, "pattern_grid_view_leds", true);
         name(0x4003cc94L, "pattern_grid_view_keys", true);
         name(0x40044ef4L, "microtiming_menu_draw", true);
         name(0x40045136L, "microtiming_clamp_lo", false);
@@ -70,7 +71,14 @@ public class ApplySymbols extends GhidraScript {
         name(0x400714e0L, "text_draw", true);
         name(0x40071674L, "bitmap_draw", true);
         name(0x40071b7cL, "text_font", true);
+        name(0x40071e90L, "key_code", true);
+        name(0x40071ee8L, "key_pressed", true);
+        name(0x40071ef4L, "key_flag3", true);
+        name(0x40071f24L, "key_func", true);
         name(0x400766e8L, "popup_ctor", true);
+        name(0x4007839cL, "view_leds_base", true);
+        name(0x400783ceL, "view_keys_base", true);
+        name(0x4007910eL, "view_stack_leds", true);
         name(0x400793f6L, "view_show_popup", true);
         name(0x4007a538L, "control_frame_send", true);
         name(0x4007a5c6L, "control_frame_dma_start", true);
@@ -90,9 +98,14 @@ public class ApplySymbols extends GhidraScript {
         name(0x4009e580L, "getFadeStep", true);
         name(0x4009e790L, "lfo_mod_block", true);
         name(0x4009e790L, "lfo_block", true);
+        name(0x400a053eL, "led_set", true);
+        name(0x400a0c80L, "led_pass", true);
         name(0x400a6422L, "kit_param_set", true);
         name(0x400a6538L, "kit_apply", true);
         name(0x400a675eL, "kit_track_sound", true);
+        name(0x400a6f70L, "kit_scene_active", true);
+        name(0x400a7d04L, "kit_scene_set_active", true);
+        name(0x400a7d0cL, "kit_scene_set_active_body", false);
         name(0x400a857cL, "param_knob_draw", true);
         name(0x400a8584L, "param_knob_draw_body", false);
         name(0x400a85e0L, "param_value_text", true);
@@ -116,10 +129,22 @@ public class ApplySymbols extends GhidraScript {
         name(0x400ab232L, "pattern_track", true);
         name(0x400ac670L, "lock_pool_set", true);
         name(0x400ae426L, "track_selection", true);
+        name(0x400ae432L, "project_obj_ec", true);
+        name(0x400ae45eL, "project_kit", true);
         name(0x400af076L, "current_track_pattern", true);
         name(0x400af0d2L, "kit_reload", true);
         name(0x400af4aeL, "param_target_for_track", true);
         name(0x400b68d2L, "track_index_of", true);
+        name(0x400b6cf8L, "mute_mask_get", true);
+        name(0x400b6d28L, "track_is_muted", true);
+        name(0x400b6d6cL, "track_mute_set_silent", true);
+        name(0x400b786cL, "track_mute_set", true);
+        name(0x400b7874L, "track_mute_set_body", false);
+        name(0x400b79caL, "track_mute_toggle", true);
+        name(0x400b86f0L, "scene_lock_remove", true);
+        name(0x400b878eL, "scene_clear", true);
+        name(0x400b8800L, "scenes_clear_all", true);
+        name(0x400b8872L, "scene_lock_set", true);
         name(0x400bc506L, "sound_randomize_values", true);
         name(0x400bc5f2L, "sound_randomize", true);
         name(0x400bceb4L, "env_reset_get", true);
@@ -141,10 +166,18 @@ public class ApplySymbols extends GhidraScript {
         name(0x400c262cL, "trig_place_lock", true);
         name(0x400c3c0eL, "euclid_bake", true);
         name(0x400c3c16L, "euclid_bake_body", false);
+        name(0x400c7b18L, "keyboard_view_keys", true);
         name(0x400c827aL, "top_bar_draw", true);
         name(0x400cb02aL, "view_lfo_page_count", false);
+        name(0x400d0754L, "scene_edit_view_ctor", true);
+        name(0x400d0bdaL, "scene_edit_leds", true);
+        name(0x400d0dd4L, "scene_edit_clear_invoker", true);
+        name(0x400d0e6eL, "scene_edit_clear_all_invoker", true);
+        name(0x400d115eL, "scene_edit_draw", true);
+        name(0x400d130cL, "scene_edit_keys", true);
         name(0x400d1c10L, "euclid_toggle_handler", true);
         name(0x400d2e1aL, "sound_page_draw", true);
+        name(0x400d4b34L, "select_track", true);
         name(0x400dd546L, "kit_reload_key", true);
         name(0x400ef83aL, "env_reset_menu_change", true);
         name(0x400f9b38L, "track_menu_ctor", true);
@@ -216,6 +249,7 @@ public class ApplySymbols extends GhidraScript {
         name(0x40170a0cL, "shared_ptr_release", true);
         name(0x4017f83eL, "project_singleton", true);
         name(0x4018193cL, "view_list_open", true);
+        name(0x4018212aL, "led_manager", true);
         name(0x401969baL, "kit_mark", true);
         name(0x401969e4L, "kit_working_data", true);
         name(0x401b7cd0L, "bitmap_set_make", true);
@@ -236,7 +270,12 @@ public class ApplySymbols extends GhidraScript {
         name(0x401cc67cL, "pattern_grid_view_vtable", false);
         name(0x401cd86cL, "microtiming_label_table", false);
         name(0x401dcaf8L, "parameter_set_vtables", false);
+        name(0x401df028L, "vt_track_mute_changed", false);
+        name(0x401df038L, "vt_track_solo_changed", false);
+        name(0x401df4fcL, "vt_scene_changed", false);
         name(0x401e123cL, "comp_view_knob_draw", false);
+        name(0x401e14e8L, "keyboard_view_vtable", false);
+        name(0x401e2c38L, "scene_edit_view_vtable", false);
         name(0x401e2e98L, "params_seq_note_view_vtable", false);
         name(0x401e36f0L, "track_selection_view_vtable", false);
         name(0x401e8eccL, "env_reset_labels", false);
@@ -254,6 +293,7 @@ public class ApplySymbols extends GhidraScript {
         name(0x4029037cL, "machine_engine_table", false);
         name(0x40290dd8L, "voice_owner_track", false);
         name(0x402b21a0L, "filter_type_icon_pixels", false);
+        name(0x405c8f20L, "PROJECT_IMAGE", false);
         name(0x417e389cL, "text_ctx", false);
         name(0x41942554L, "lfo_state_base", false);
         name(0x419c9f14L, "filter_cal_coeffs", false);
@@ -277,6 +317,6 @@ public class ApplySymbols extends GhidraScript {
         name(0x8000fbbcL, "fx_return_route_flag_delay", false);
         name(0x8000fef4L, "fx_mix_ring_slot", false);
         name(0x8000fef8L, "voice_machine_state", false);
-        println("applied 260 symbols");
+        println("applied 300 symbols");
     }
 }

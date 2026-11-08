@@ -5,7 +5,7 @@ building see `README.md`, for installing see `docs/FLASHING.md`, and read
 `docs/HAZARDS.md` before flashing.
 
 The default image is
-`Analog-Rytm_MKII_OS1.73_0000_0002_0003_0004_0006_0008_0009_0010_0012_0013_0014_0015.syx`. It is stock
+`Analog-Rytm_MKII_OS1.73_0000_0002_0003_0004_0006_0008_0009_0010_0012_0013_0014_0015_0017_0018.syx`. It is stock
 OS 1.73 with the mods below added; everything not mentioned here behaves as stock.
 
 | mod | where | what |
@@ -21,11 +21,10 @@ OS 1.73 with the mods below added; everything not mentioned here behaves as stoc
 | 0013 | AUDIO ROUTING > DAC SUM; FILTER key, pressed twice | voices summed through the DAC, with a per-sound filter, transient shaper and polarity |
 | 0014 | TRK + any knob | turn that parameter on every sound track |
 | 0015 | SOUND SETTINGS > ENV RESET | AMP and AMP+FILT: the amp envelope restarts on every trig |
+| 0017 | CONTROL INPUT 1 and 2 pages, PERF DEST | CTRL IN in CV or EXPR mode drives a performance macro, PF1..PF12 |
+| 0018 | SCENE held, FUNC + trig | a scene stores track mutes and applies them when engaged |
 
 0000 is the shared code the others call into. It has no controls.
-
-0002 to 0008, 0010 and 0012 to 0015 have been verified on hardware. 0009's display has
-been checked on the device.
 
 ## 0002 - Euclidean accents
 
@@ -420,6 +419,80 @@ value is.
 - A trig on a voice that is still sounding drops it to silence at once, which
   can click, most with ATK 0 and a long DEC.
 - On stock firmware AMP has no effect.
+
+## 0017 - CTRL IN to performance
+
+A CTRL IN jack can drive one of the twelve performance macros, so a CV or an
+expression pedal plays PF1..PF12 as the macro's knob would.
+
+**Use.** Open CONTROL INPUT 1 or 2 and set MODE to CV or EXPR. PERF DEST appears
+below the port's other settings: OFF or PF1..PF12. A MODE change takes effect
+when the page is left, as stock; PERF DEST takes effect at once.
+
+| MODE | 0 | 127 |
+|---|---|---|
+| CV | CV ZERO LEVEL and below | CV MAX LEVEL and above |
+| EXPR | the bottom of the learned range | the top |
+
+The macro's locks follow the input, and in PERF mode its pad lights to show the
+value, as when the knob turns it. Each new value is reached over about 22 ms,
+the same glide the knob gets. The value moves only when the input passes three
+quarters of a step beyond the current one, so a noisy CV does not make it
+jitter.
+
+While a port drives a macro the input always wins: the macro's knob, its pad and
+CC 35..47 are overridden within a millisecond. The two ports can drive different
+macros. CONTROL IN 1 MOD and 2 MOD keep working alongside.
+
+PERF DEST belongs to the device, like the rest of the CONTROL INPUT page, not to
+the project or kit, and is kept over a power cycle. In OFF and FSW modes the item
+is hidden and the port drives nothing; the setting returns with CV or EXPR.
+
+**Known limits**
+
+- Nothing is sent on MIDI or Overbridge, and the kit is not marked edited.
+
+## 0018 - Scene mutes
+
+A scene can also set the track mutes. Engaging it mutes exactly the tracks it
+marks; letting go of it brings back the mutes you had.
+
+**Use.**
+
+| gesture | does |
+|---|---|
+| hold SCENE, then FUNC + T1..T13 | toggles that track (T13 is FX) in the edited scene's mutes |
+| hold SCENE and FUNC | T1..T13 light for the tracks the edited scene mutes |
+| engage a scene with mutes | the mutes become the scene's |
+| engage a scene without mutes, or none | the mutes from before the first scene come back |
+| `<CLEAR>` / `<CLEAR ALL>` | also drop the edited scene's / every scene's mutes |
+
+Hold SCENE until the scene edit page opens before pressing FUNC; FUNC pressed
+straight after SCENE is not taken. The first toggle gives the scene mutes, even
+if it leaves every track playing: such a scene unmutes everything.
+
+Stock's SCENE + FUNC + pad picks the scene to edit without engaging it, so the
+mutes can be set without hearing them.
+
+Scenes engaged any way set the mutes: pads, CC 92, NRPN or Overbridge. A track
+muted or unmuted by hand or by MIDI while a scene is engaged keeps that change
+when the scene is let go.
+
+Each kit has its own scene mutes, kept with the kit in the project. Edits to
+them are kept at once: RELOAD KIT and 0010's A/B do not undo them.
+
+**Known limits**
+
+- While SCENE is held, FUNC + trig belongs to this mod in every mode. Stock's own
+  uses are lost: in grid record it places a trigless lock trig, in step record it
+  selects and previews the track.
+- COPY / PASTE SCENE, kit copy and paste, and SysEx kit transfer do not carry the
+  mutes. Clearing a kit leaves them.
+- A kit change while a scene is engaged keeps the old kit's mutes as the ones to
+  return to. A kit that loads with a scene engaged has none, so letting go leaves
+  the mutes as they are.
+- A mute changed from Overbridge while a scene is engaged is not kept when the
+  scene is let go.
 
 ## Returning to stock
 

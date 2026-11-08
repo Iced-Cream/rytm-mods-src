@@ -1212,6 +1212,294 @@ sig = "void(void *data)"
 status = "inferred"
 note = "kit_reload's tail call, with the working kit's data: passes the kit to the engine. Not read."
 
+# ------------------------------------------------ scenes and mutes
+# Traced 2026-11-01 by static reading; see re/subsystems/scenes-mutes.md.
+
+[fn.project_kit]
+addr = 0x400ae45e
+sig = "Kit *(Project *)"
+status = "verified"
+note = "Returns project + 352, the working kit. Its vtable +52 returns the live kit data (active scene at +0x97e)."
+
+[fn.project_obj_ec]
+addr = 0x400ae432
+sig = "void *(Project *)"
+status = "verified"
+note = "Returns project + 236. Its vtable +52 data holds the two longs the scene and mute setters check: +0xa0 (0x400b5654) and +0xa4 (0x400b57de). At 2 the setter skips the local change but still sends it out when asked to echo, so plausibly a local-off mode (inferred; the setting is not identified)."
+
+[const.KIT_ACTIVE_SCENE]
+value = 0x97e
+status = "verified"
+note = "Live kit data offset of the active scene, a signed byte: -1 none, 0..11. Written by kit_scene_set_active (0x400a7d68), the kit loader (0x40008798, from the stored word +0x9d7's low byte, values outside 0..11 become -1) and 0x4001186c. Read by kit_scene_active, the kit save (0x4000897e) and the engine push (0x4011f808)."
+
+[fn.kit_scene_set_active]
+addr = 0x400a7d04
+sig = "void(Kit *kit, int scene, bool echo)"
+status = "verified"
+note = "Engages scene 0..11 or disengages with -1 (scene + 1 > 12 unsigned returns). Unless project_obj_ec's +0xa0 is 2, writes KIT_ACTIVE_SCENE and calls the kit's vtable +80 with 0. With echo, sends NRPN 0xE8 (0x400858f6) or CC 92 (0x400858ae) out. Every caller: MIDI CC 92 with echo 0 (0x4008558a), NRPN 0xE8 (0x400b2ba4), scene_edit_keys 0x400d1506 (a pad pressed without FUNC) and SceneSelectView 0x400d185e (echo 1; the active scene's own pad sends -1), Overbridge receive 0x401035dc. The kit loader writes the byte directly and does not come here."
+
+[fn.kit_scene_active]
+addr = 0x400a6f70
+sig = "int(Kit *kit)"
+status = "verified"
+note = "Returns the sign-extended KIT_ACTIVE_SCENE, or -1 with no live kit data."
+
+[data.vt_track_mute_changed]
+addr = 0x401df028
+status = "verified"
+note = "ProjectSettingsTrackMuteChangedInfo's vtable. The notice is {vtable, long track, byte muted, byte host}, sent through the settings object's vtable +16. host is 1 from track_mute_set and 0 from track_mute_set_silent; the listener at 0x400b013a does nothing when it is 0, otherwise passes the change on with id 9 (to the USB host, inferred)."
+
+[data.vt_track_solo_changed]
+addr = 0x401df038
+status = "verified"
+note = "ProjectSettingsTrackSoloChangedInfo's vtable, built at 0x400b6f0c and 0x400b7ab8. Solo setters not read."
+
+[fn.mute_mask_get]
+addr = 0x400b6cf8
+sig = "uint32(ProjectSettings *)"
+status = "verified"
+note = "The track mute mask, bit t for track t: the +0x20 long of the settings object's vtable +40 data, or 0 without it. The settings object is project + 0x30, the one track_selection returns."
+
+[fn.track_is_muted]
+addr = 0x400b6d28
+sig = "bool(ProjectSettings *, int track)"
+status = "verified"
+note = "Bit track of the mute mask; false for track > 12."
+
+[fn.track_mute_set_silent]
+addr = 0x400b6d6c
+sig = "void(ProjectSettings *, int track, bool mute)"
+status = "verified"
+note = "Sets or clears the mask bit and sends the mute notice with host 0. No track range check and no guard. Only caller: the Overbridge receive dispatcher (0x401038c0, settings kind 9)."
+
+[fn.track_mute_set]
+addr = 0x400b786c
+sig = "void(ProjectSettings *, int track, bool mute, bool echo)"
+status = "verified"
+note = "Track 0..12. Unless project_obj_ec's +0xa4 is 2, sets or clears the mask bit and sends the mute notice with host 1. With echo, sends NRPN 0xE5 (0x400858f6) or CC 94 (0x400858ae) out. Callers: MIDI CC 94 with echo 0 (0x400854fe), the NRPN dispatcher's 0xE5 (0x400b2b38), track_mute_toggle."
+
+[fn.track_mute_toggle]
+addr = 0x400b79ca
+sig = "void(ProjectSettings *, int track, bool echo)"
+status = "verified"
+note = "track_mute_set(!track_is_muted). Called by QuickMuteMenuView (0x400cfc6a, 0x400cfdc0)."
+
+[data.vt_scene_changed]
+addr = 0x401df4fc
+status = "verified"
+note = "SceneChangedInfo's vtable: {vtable, long scene or -1, byte}. Sent when a scene's locks are edited or cleared and after a kit receive (0x401037a2), not when a scene is engaged."
+
+[fn.scene_lock_set]
+addr = 0x400b8872
+sig = "int(Scenes *, int scene, int track, int param, int value)"
+status = "verified"
+note = "Finds or allocates (0x400b8512, last argument 1) one of the 48 five-byte lock entries in the Scenes data (vtable +40) and stores value as the entry's +0 word; returns value, or -1 for track > 12 or no free entry. Sends SceneChangedInfo for scene. Entry layout from the clears: +0 value word, +2 track, +3 param (0xff free), +4 scene."
+
+[fn.scene_lock_remove]
+addr = 0x400b86f0
+sig = "void(Scenes *, int scene, int track, int param)"
+status = "verified"
+note = "Frees the matching lock entry (0x400b8512, last argument 0) and sends SceneChangedInfo for scene."
+
+[fn.scene_clear]
+addr = 0x400b878e
+sig = "void(Scenes *, int scene)"
+status = "verified"
+note = "Frees every lock entry whose +4 byte is scene, then sends SceneChangedInfo with -1."
+
+[fn.scenes_clear_all]
+addr = 0x400b8800
+sig = "void(Scenes *)"
+status = "verified"
+note = "Frees all 48 lock entries and sends SceneChangedInfo with -1."
+
+# Scene edit keys and the LED pass, traced 2026-11-01 by static reading and the
+# emulator (watches; --break is unreliable with the JIT on).
+
+[const.KEY_SCENE]
+value = 0x13
+status = "verified"
+note = "SCENE. Held, it opens SceneEditView (footer `SCENE: n ++  LOCKS: k`), confirmed in the emulator. FUNC held first and then SCENE opened the PATTERN menu instead."
+
+[const.KEY_PAD0]
+value = 0x90
+status = "verified"
+note = "The first pad (BD); the twelve pads are 0x90..0x9b. SceneEditView and QuickMuteMenuView both take code - 0x90 as the pad index 0..11."
+
+[fn.key_code]
+addr = 0x40071e90
+sig = "int(KeyEvent *)"
+status = "verified"
+note = "The event's key code, its +12 long."
+
+[fn.key_pressed]
+addr = 0x40071ee8
+sig = "bool(KeyEvent *)"
+status = "verified"
+note = "Bit 0 of the event's +16 flags: set on press, clear on release. key_released 0x40071f04 is its inverse."
+
+[fn.key_flag3]
+addr = 0x40071ef4
+sig = "bool(KeyEvent *)"
+status = "inferred"
+note = "Bit 3 of the event's +16 flags. Every handler read ignores a press with it set (SceneEditView pads, KeyboardView trigs, the base handler through 0x40071f34), so plausibly a repeat or synthetic event. Meaning not established."
+
+[fn.key_func]
+addr = 0x40071f24
+sig = "bool(KeyEvent *)"
+status = "verified"
+note = "Bit 1 of the event's +16 flags: FUNC held when the key went down. The base handler needs it for FUNC + REC/PLAY/STOP (copy/clear/paste), and SceneEditView's pad branch skips kit_scene_set_active with it set, which the emulator confirmed (SCENE + FUNC + SD selects scene 2 for editing, not engaged)."
+
+[fn.view_keys_base]
+addr = 0x400783ce
+sig = "bool(View *, KeyEvent *)"
+status = "verified"
+note = "The base key handler unhandled keys reach. Only a fresh press with FUNC of RECORD (0x50), PLAY (0x51) or STOP (0x52) does anything: the view's vtable +52 (copy), +56 (clear) or +60 (paste). Anything else returns false, so the key goes on to the next view."
+
+[fn.view_leds_base]
+addr = 0x4007839c
+sig = "void(View *, uint32 *regions)"
+status = "verified"
+note = "Tail of a view's LED update: jumps to the view's vtable +24 (0x400787a0 in the base), which stores the remaining region bits at +44 and runs the view's listeners."
+
+[data.scene_edit_view_vtable]
+addr = 0x401e2c38
+status = "verified"
+note = "SceneEditView. Slot 2 scene_edit_keys, slot 4 scene_edit_draw, slot 5 scene_edit_leds, slots 13..15 copy 0x400d0f02, clear 0x400d108e, paste 0x400d0fbe (the COPY SCENE %d / CLEAR SCENE / PASTE SCENE popups). Object: +104 the menu, +164 a lock-edit helper (0x401815c4), +172 track_selection, +176 the working kit, +188 the held pad mask, +192 the edited scene 0..11."
+
+[fn.scene_edit_view_ctor]
+addr = 0x400d0754
+sig = "void(SceneEditView *, int scene)"
+status = "verified"
+note = "Builds a menu of four items: SCENE (value 0..11, `SCENE: %d %s%s`), `LOCKS: %d`, `<CLEAR>` (scene_clear, popup CLEARED) and `<CLEAR ALL>` (scenes_clear_all). A negative scene argument takes kit_scene_active, and anything above 11 becomes 0."
+
+[fn.scene_edit_keys]
+addr = 0x400d130c
+sig = "bool(SceneEditView *, KeyEvent *)"
+status = "verified"
+note = "Handles LEFT, RIGHT, UP, DOWN, YES, NO and the pads. A pad press makes that pad the edited scene (+192) and marks it held (+188); without FUNC it also engages it with kit_scene_set_active(kit, pad, 1) at 0x400d1506. Every other key, the trig keys included, goes to view_keys_base at 0x400d14ae and on to the views below, where a plain trig selects the track (KeyboardView)."
+
+[fn.scene_edit_clear_invoker]
+addr = 0x400d0dd4
+sig = "void(std::_Any_data *f)"
+status = "verified"
+note = "`<CLEAR>`'s std::function invoker: scene_clear(scenes, this +192), then the CLEARED popup. The SceneEditView is **f. Its only reference is the constructor's `movel #0x400d0dd4,%d0` at 0x400d0a08 (the long at 0x400d0a0a)."
+
+[fn.scene_edit_clear_all_invoker]
+addr = 0x400d0e6e
+sig = "void(std::_Any_data *f)"
+status = "verified"
+note = "`<CLEAR ALL>`'s invoker: scenes_clear_all, then the CLEARED popup. Only reference: the constructor's `movel #0x400d0e6e,%d0` at 0x400d0a90 (the long at 0x400d0a92)."
+
+[data.PROJECT_IMAGE]
+addr = 0x405c8f20
+status = "verified"
+note = "The stored project image, 0x1f9f32 B, at a fixed address (0x40034d3c returns it; seven sites push it). The project save at 0x4000d314 serializes into it: +0x19c9c5 the working kit's record, +0x19d3f7 the active kit index (long), +0x19d3fb kits 0..127 at STORED_KIT_SIZE each. It persists whole: a word poked into a kit record's spare bytes survived the power-fail save and a cold boot in the emulator (2026-11-01). A kit change runs no kit_load; it re-saves the working record and memcpys live kits."
+
+[const.STORED_KITS]
+value = 0x19d3fb
+status = "verified"
+note = "Offset in PROJECT_IMAGE of stored kit 0. Kit k's record is at PROJECT_IMAGE + STORED_KITS + k * STORED_KIT_SIZE (odd addresses; stock reads words there unaligned)."
+
+[const.STORED_KIT_SIZE]
+value = 0xa32
+status = "verified"
+note = "One stored kit record, 2610 B (the project save's stride at 0x4000d39a)."
+
+[const.KIT_SPARE_A]
+value = 0x832
+status = "verified"
+note = "Stored kit +0x832..+0x841, 16 B no stock code reads or writes (see re/subsystems/loosened-scopes.md). Mod 0018 keeps its scene mute marks and masks here."
+
+[const.KIT_SPARE_B]
+value = 0x902
+status = "verified"
+note = "Stored kit +0x902..+0x916, 21 B no stock code reads or writes. Mod 0018 uses +0x902..+0x90c."
+
+[const.PROJECT_WORKING_KIT]
+value = 352
+status = "verified"
+note = "The working KitSlot in the project (project_kit returns it). Its vtable +108 returns the current kit index 0..127 (kit_reload 0x400af0ec; NO + PLAY's popup number is this + 1)."
+
+[data.kit_scene_set_active_body]
+addr = 0x400a7d0c
+status = "verified"
+note = "kit_scene_set_active after its prologue `lea %sp@(-28),%sp; moveml %d2-%d4/%a2-%a5,%sp@` (8 bytes, 4fefffe4 48d73c1c)."
+
+[data.track_mute_set_body]
+addr = 0x400b7874
+status = "verified"
+note = "track_mute_set after its prologue `linkw %fp,#-48; moveml %d2-%d6/%a2-%a5,%sp@` (8 bytes, 4e56ffd0 48d73c7c)."
+
+[fn.scene_edit_draw]
+addr = 0x400d115e
+sig = "void(SceneEditView *, Canvas *)"
+status = "inferred"
+note = "Slot 4: draws the menu items as the footer row. Read only far enough to place it."
+
+[fn.scene_edit_leds]
+addr = 0x400d0bda
+sig = "void(SceneEditView *, uint32 *regions)"
+status = "verified"
+note = "Slot 5. If region bit 1 (the pads) is set, colours pad 0..11 by scene: edited, holding locks, active; then clears bit 1 and calls view_leds_base. It leaves bit 0 (the trig keys) to the views below."
+
+[data.keyboard_view_vtable]
+addr = 0x401e14e8
+status = "verified"
+note = "KeyboardView (the name passed by its constructor at 0x400c72a0). Always under the scene, mute and menu views. Its constructor also starts the 50 ms timer job 0x400c6d7c that applies a queued track select (+176 track, -1 none; +180 flag) through select_track."
+
+[fn.keyboard_view_keys]
+addr = 0x400c7b18
+sig = "bool(KeyboardView *, KeyEvent *)"
+status = "verified"
+note = "Slot 2: the trig keys (codes 0..15) and RTRG (0x85). A plain trig press plays the track and queues it for select_track (0x400c7e42 writes +176); emulator-confirmed with and without SCENE held. With FUNC held (0x400c7c62) it returns false unless 0x400363bc is true, so FUNC + trig does nothing here: no select, no MIDI, no LED change in the emulator, with and without SCENE. The other FUNC branches depend on the sequencer UI state at its +140 (shared with PatternGridView's +108): +360 grid record (0x4003625c, toggled by RECORD), +361 live record (0x40036370 while playing, RECORD + PLAY), +362 step record (0x400363bc, RECORD + STOP, popup STEP REC: STANDARD), +417 and +69 not identified (0 in every mode tried). With FUNC: grid record passes the trig down to PatternGridView, which places a trigless lock trig (trig_place_lock) on an empty step; step record plays and selects the track; live record and no record do nothing (emulator, 2026-11-01)."
+
+[fn.select_track]
+addr = 0x400d4b34
+sig = "void(int track, bool flag)"
+status = "verified"
+note = "Selects track 0..12 through the project's track_selection (0x400b7d4e, 0x400b7cca). Callers: KeyboardView's timer job 0x400c6d98, TrackSelectionView 0x400d4f0a and 0x400d4f40. The flag skips part of the work when the track is unchanged; not read further."
+
+[fn.led_manager]
+addr = 0x4018212a
+sig = "LedManager *()"
+status = "verified"
+note = "The LED manager singleton every LED setter takes (0x41ae4b40 in the emulator)."
+
+[fn.led_set]
+addr = 0x400a053e
+sig = "void(LedManager *, int keycode, int mode, int colour, int level)"
+status = "verified"
+note = "Stores mode at +44 + 4k, colour at +816 + 4k and level at +1588 + k for key code k, and sends to the panel (0x400a03d2) only when one of them changed. LEDs are addressed by key code: the trig keys are 0..15. PatternGridView's playhead uses mode 1, colour 6, level 15 (0x4003c336). Mode 0 is off; the meaning of the other modes and colours is inferred from 0x400a03d2's switch."
+
+[fn.led_pass]
+addr = 0x400a0c80
+sig = "void(LedManager *, uint32 regions)"
+status = "verified"
+note = "One LED refresh: view_stack_leds with the region bits, then 0x400a06fc switches off every region no view claimed. Both callers (0x40052272, 0x400a2d5a) pass 0x3ffff, so every pass redraws everything. About 20 Hz in the emulator (60 passes in about 3 s), so a view's LED state shows within 50 ms without a redraw request."
+
+[fn.view_stack_leds]
+addr = 0x4007910e
+sig = "void(ViewController *, uint32 *regions)"
+status = "verified"
+note = "Calls each view's slot 5 (LED update) with the region mask, top view first, until no bit is left. A view draws the regions it owns and clears their bits, so the views below skip them."
+
+[const.LED_REGION_TRIGS]
+value = 0x1
+status = "verified"
+note = "Region bit for the trig key LEDs. PatternGridView draws them when it is set; with the transport stopped and no record mode, nobody claims it and led_pass switches them off."
+
+[const.LED_REGION_PADS]
+value = 0x2
+status = "verified"
+note = "Region bit for the pad LEDs; scene_edit_leds claims it."
+
+[fn.pattern_grid_view_leds]
+addr = 0x4003bec4
+sig = "void(PatternGridView *, uint32 *regions)"
+status = "verified"
+note = "Slot 5 of pattern_grid_view_vtable: the trig LEDs (steps, playhead) under LED_REGION_TRIGS, then clears the bits it drew (0x4003c2d6) and calls view_leds_base."
+
 # ------------------------------------------------ pattern tracks: trigs and locks
 # Traced 2026-09-27 for 0012. A track block is pattern_track(pattern, track).
 

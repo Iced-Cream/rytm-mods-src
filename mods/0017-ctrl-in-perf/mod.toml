@@ -1,0 +1,50 @@
+[mod]
+id      = "0017-ctrl-in-perf"
+title   = "CTRL IN drives a performance macro"
+
+enabled = true
+
+# cave19 is one of the pools 0011's fill covers.
+excludes = ["0011-batch-probe"]
+
+# re-only | built | hardware-verified | retracted
+status  = "built"
+
+summary = """
+PERF DEST on the CONTROL INPUT 1 and 2 pages, in CV and EXPR modes, sends the
+port to a performance macro, OFF or PF1..PF12. The port then sets the macro as
+its knob would, the CV always winning: CV ZERO LEVEL..CV MAX LEVEL (or the EXPR
+range) maps to 0..127, the macro's locks follow, its pad LED shows it in PERF
+mode, and neither the kit nor the project is marked edited. Nothing is sent on
+MIDI or Overbridge. While the port drives the macro, the macro's knob and pad
+are overwritten at the next audio block.
+
+A detour in the audio interrupt just after adc_pedal_update (0x40120e94) writes
+each mapped macro's target (0x8000e57c + 2k) every block; the step changes only
+when the port moves by more than 0.75 of a step, so ADC noise does not move it.
+A detour where ControlInputConfig::rebuild's mode branches converge
+(0x40131962) appends the PERF DEST item.
+
+PERF DEST is device-wide, like the port settings, and kept in the persisted gap
+at 0x405c8e84 under a tag (re/subsystems/control-inputs.md; emulator survey
+2026-11-01): the power-fail save and the boot restore carry it, and a bad tag
+reads as OFF.
+
+probe builds a hard-coded mapping instead, port probe_port to macro probe_perf,
+over the stored one for that port.
+"""
+
+[sources]
+stub = "stub.s"
+
+[requires]
+shared = false
+symbols = ["mem_new", "std_string_from_cstr"]
+
+[params]
+# 1 = port probe_port drives macro probe_perf whatever PERF DEST says.
+probe = 0
+# 0 = CTRL IN 1, 1 = CTRL IN 2.
+probe_port = 0
+# 0..11 = PF1..PF12.
+probe_perf = 0

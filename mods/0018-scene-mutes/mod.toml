@@ -1,0 +1,63 @@
+[mod]
+id      = "0018-scene-mutes"
+title   = "Scenes that set the track mutes"
+
+enabled = true
+
+# cave10 and cave18 are pools 0011's fill covers; the two never share an image.
+excludes = ["0011-batch-probe"]
+
+# re-only | built | hardware-verified | retracted
+status  = "built"
+
+summary = """
+With SCENE held, FUNC + T1..T13 toggles that track (T13 is FX) in the edited
+scene's mute mask; the first toggle marks the scene as one that sets mutes.
+FUNC + pad still picks a scene to edit without engaging it, so a mask can be set
+silently. While FUNC is held in scene edit, T1..T13 light for the tracks the
+edited scene mutes.
+
+Engaging a marked scene replaces the mutes with its mask; an unmarked scene, or
+none, puts back the mutes from before the first scene. A mute changed by hand or
+by MIDI while a scene is engaged goes into that saved state too. <CLEAR> drops
+the edited scene's mask and mark, <CLEAR ALL> every scene's.
+
+SceneEditView's key and LED slots and its two clear invokers are repointed; the
+entries of kit_scene_set_active and track_mute_set are detoured, so pads, CC 92,
+NRPN and Overbridge all engage scenes through the one wrapper. Every mute change
+goes through track_mute_set with echo 0. The marks and masks live in the
+current kit's record in the stored project image, in bytes stock never touches,
+so they persist with the project and follow kit changes; edits to them are saved
+at once and RELOAD does not revert them. See re/subsystems/scenes-mutes.md.
+"""
+
+[sources]
+stub = "stub.s"
+
+[requires]
+shared = false
+symbols = [
+  "KEY_FUNC",
+  "PROJECT_IMAGE",
+  "STORED_KITS",
+  "STORED_KIT_SIZE",
+  "KIT_SPARE_A",
+  "KIT_SPARE_B",
+  "PROJECT_WORKING_KIT",
+  "LED_REGION_TRIGS",
+  "is_key_held",
+  "led_manager",
+  "led_set",
+  "project_singleton",
+  "project_kit",
+  "track_selection",
+  "kit_scene_active",
+  "kit_scene_set_active_body",
+  "mute_mask_get",
+  "track_mute_set",
+  "track_mute_set_body",
+  "scene_edit_keys",
+  "scene_edit_leds",
+  "scene_edit_clear_invoker",
+  "scene_edit_clear_all_invoker",
+]

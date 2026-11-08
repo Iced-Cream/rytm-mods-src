@@ -15,6 +15,8 @@ rule as the symbol map: say what was measured and what was inferred.
 - [analog-controls.md](analog-controls.md) - the 492-word control frame sent to the analog side each interrupt: its sender, and what every region drives
 - [machines.md](machines.md) - the engine's machine table, what a machine function writes, voice availability, every machine's parameters and what each drives, and the 19 hidden machines
 - [tempo.md](tempo.md) - the tempo word, the top bar's BPM display bug, and the MIDI clock running fast of the setting
+- [scenes-mutes.md](scenes-mutes.md) - the track mute mask and its setters, the active scene and every path that engages one, the scene-edit keys and the LED pass, and the design for scenes that store mutes (SCENE + FUNC + trig)
+- [control-inputs.md](control-inputs.md) - CTRL IN from ADC to engine, the port settings and their storage, CONTROL IN MOD, performance macro values and their writers, the persisted gap at 0x405c8e84, the CONTROL INPUT page's rebuild, and mod 0017
 
 Starting point for anything else: MAIN OS is a C++ build with Itanium-ABI names
 intact, so `strings build/stock_mainos.bin | c++filt` names most of the classes

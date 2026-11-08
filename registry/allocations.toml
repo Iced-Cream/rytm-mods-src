@@ -2316,3 +2316,97 @@ expect  = "3b40002a"       # movew %d0,%a5@(42)
 replace = "426d002a"       # clrw %a5@(42)
 gate    = "bit_probe"
 
+# ------------------------------------------------ 0017-ctrl-in-perf
+
+[[cave]]
+owner = "0017-ctrl-in-perf"
+addr  = 0x40135f46
+size  = 0x370
+note  = "All of cave19: the CTRL IN -> performance macro write, the PERF DEST item's construction, label, drawer, changer and manager, its texts, and the per-port last-step words written at run time."
+
+# The audio interrupt, right after adc_pedal_update returns: `lea 0x800067de,%a4`,
+# re-emitted, rejoining at 0x40120ea4.
+[[detour]]
+owner  = "0017-ctrl-in-perf"
+addr   = 0x40120e9e
+size   = 6
+expect = "49f9800067de"
+entry  = "ctrl_in_perf"
+
+# ControlInputConfig::rebuild, where every mode branch converges:
+# `moveal %a2@,%a0; clrl %sp@-; movel %d6,%sp@-`, re-emitted, rejoining at
+# 0x40131968. The stub appends PERF DEST in CV and EXPR modes.
+[[detour]]
+owner  = "0017-ctrl-in-perf"
+addr   = 0x40131962
+size   = 6
+expect = "205242a72f06"
+entry  = "cip_menu"
+
+# ------------------------------------------------ 0018-scene-mutes
+
+[[cave]]
+owner = "0018-scene-mutes"
+addr  = 0x40025c00
+size  = 0x228
+note  = "All of cave10: the kit_scene_set_active and track_mute_set wrappers, the helpers that find the current kit's stored record and set the mutes, and what is written at run time - the saved mutes and two state bytes."
+
+[[cave]]
+owner   = "0018-scene-mutes"
+addr    = 0x400d3b0c
+size    = 0x1f0
+section = ".sme"
+note    = "All of cave18: SceneEditView's key, LED and clear hooks and the mask accessors. The two halves together are too big for any one free run."
+
+# SceneEditView's vtable slot 2, the key handler. The stub takes FUNC + trig
+# 1..13 and jumps to the stock handler for the rest.
+[[patch]]
+owner       = "0018-scene-mutes"
+addr        = 0x401e2c40
+size        = 4
+expect      = "400d130c"
+from_symbol = "sm_keys"
+
+# SceneEditView's vtable slot 5, the LED update. With FUNC held the stub draws
+# the trig LEDs and claims their region, then jumps to the stock update.
+[[patch]]
+owner       = "0018-scene-mutes"
+addr        = 0x401e2c4c
+size        = 4
+expect      = "400d0bda"
+from_symbol = "sm_leds"
+
+# SceneEditView's constructor, `movel #0x400d0dd4,%d0` at 0x400d0a08: <CLEAR>'s
+# invoker. The stub drops the scene's mask and mark and jumps to it.
+[[patch]]
+owner       = "0018-scene-mutes"
+addr        = 0x400d0a0a
+size        = 4
+expect      = "400d0dd4"
+from_symbol = "sm_clear"
+
+# The same constructor, `movel #0x400d0e6e,%d0` at 0x400d0a90: <CLEAR ALL>'s.
+[[patch]]
+owner       = "0018-scene-mutes"
+addr        = 0x400d0a92
+size        = 4
+expect      = "400d0e6e"
+from_symbol = "sm_clear_all"
+
+# kit_scene_set_active's entry: `lea %sp@(-28),%sp; moveml %d2-%d4/%a2-%a5,%sp@`,
+# re-emitted by ksa_stock, which the wrapper calls; it rejoins at 0x400a7d0c.
+[[detour]]
+owner  = "0018-scene-mutes"
+addr   = 0x400a7d04
+size   = 6
+expect = "4fefffe448d73c1c"
+entry  = "ksa_hook"
+
+# track_mute_set's entry: `linkw %fp,#-48; moveml %d2-%d6/%a2-%a5,%sp@`,
+# re-emitted, rejoining at 0x400b7874.
+[[detour]]
+owner  = "0018-scene-mutes"
+addr   = 0x400b786c
+size   = 6
+expect = "4e56ffd048d73c7c"
+entry  = "tms_hook"
