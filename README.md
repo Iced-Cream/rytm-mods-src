@@ -1,4 +1,7 @@
+
 # rytm-mods
+
+-Public copy of MrScruff's firmware modifications for the Analog Rytm MKII, redistributed with permission. Released as-is, responses to issues should not be expected.
 
 Firmware modifications for the Elektron Analog Rytm MKII, OS 1.73.
 
